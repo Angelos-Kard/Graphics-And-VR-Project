@@ -62,16 +62,14 @@ GLuint particleShaderProgram, normalShaderProgram;
 GLuint projectionMatrixLocation, viewMatrixLocation, modelMatrixLocation, projectionAndViewMatrix, projectionMatrixLocation2, viewMatrixLocation2;
 GLuint translationMatrixLocation, rotationMatrixLocation, scaleMatrixLocation;
 //Textures and Samplers
-GLuint rainTexture, diffuceColorSampler, landscapeTexture, pathTexture, grassTexture, rock_tipTexture, greenTexture, rockTexture, diffuceColorSampler2, sunTexture;
+GLuint rainTexture, diffuceColorSampler, landscapeTexture, pathTexture, grassTexture, rock_tipTexture, greenTexture, rockTexture, diffuceColorSampler2;
 GLuint ps_logo, cross_icon, square_icon, circle_icon, triangle_icon;
-GLuint waterTexture, water2Texture, waterTextureSampler, water2TextureSampler, raindropTexture, raindropTextureSampler, timeUniform;
+GLuint waterTexture, water2Texture, waterTextureSampler, water2TextureSampler, timeUniform;
 //Flag & Location
 int flood_flag = 0;
 GLuint flood_flag_location;
 
 //Lighting
-//glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
-//glm::vec3 lightPos(-30.0f, 80.0f, -20.0f);
 glm::vec3 lightPos;
 GLuint diffuse_Location, ambient_Location, specular_Location, Light_power_Location;
 glm::vec3 ambient = vec3(0.95f, 0.95f, 0.95f), diffuse = vec3(0.95f, 0.95f, 0.95f), specular = vec3(0.95f, 0.95f, 0.95f);
@@ -93,7 +91,7 @@ void pseudo_pollJoystick(int time_interval);
 bool game_paused = false;
 
 bool use_sorting = false;
-bool use_rotations = false;
+bool use_rotations = true;
 
 float wind_x = 0.0f;
 float wind_z = 0.0f;
@@ -157,10 +155,6 @@ void renderHelpingWindow() {
     ImGui::Text("");
     ImGui::ColorEdit3("Background", &background_color[0]);
 
-    //ImGui::SliderFloat("x position", &slider_emitter_pos[0], -30.0f, 30.0f);
-    //ImGui::SliderFloat("y position", &slider_emitter_pos[1],  0.0f, 50.0f);
-    //ImGui::SliderFloat("z position", &slider_emitter_pos[2], -30.0f, 30.0f);
-
     ImGui::Text("");
     ImGui::Text("West");
     ImGui::SameLine();
@@ -177,20 +171,12 @@ void renderHelpingWindow() {
     ImGui::Text("");
     ImGui::SliderFloat("Light Position", &angle_light, -100.0f, 100.0f);
 
-    //ImGui::SliderFloat("height", &height_threshold, 0, 200);
     ImGui::Text("");
     if (use_rotations) ImGui::SliderInt("Rain", &particles_slider, 0, 17500);
     else ImGui::SliderInt("Rain", &particles_slider, 0, 23500);
 
 
-
-    /*
-    if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-        counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
-    */
-    ImGui::Checkbox("Use sorting", &use_sorting);
+    ImGui::Text("");
     ImGui::Checkbox("Use rotations", &use_rotations);
     
     ImGui::Checkbox("Increase moving speed (for debugging)", &speed);
@@ -199,7 +185,7 @@ void renderHelpingWindow() {
     ImGui::Text("Max Particles:\n- Rotations ON: 17,500\n- Rotations OFF: 23,500");
 
     ImGui::Text("");
-    if (ImGui::Button("   ")) // Buttons return true when clicked (most widgets return true when edited/activated)
+    if (ImGui::Button("   "))
         light_mode = (light_mode + 1) % 4;
     ImGui::SameLine();
     ImGui::Text("Light Mode: %d -", light_mode);
@@ -247,9 +233,11 @@ void renderTutorialWindow() //Tutorial for Controller
     ImGui::Text(">> Use 'Right Analog' to look around");
     ImGui::Text(">> Use 'D-PAD Up' to move upwards");
     ImGui::Text(">> Use 'D-PAD Down' to move downwards");
-    ImGui::Text(">> Use 'D-PAD Left' and 'D-Pad Right' to change the position of the light");
+    ImGui::Text(">> Use 'D-PAD Left' and 'D-Pad Right' to change");
+    ImGui::Text("   the position of the light");
     ImGui::Text(">> Press 'L1' to change light mode*");
     ImGui::Text(">> Press 'Options' to pause the particles*");
+    ImGui::Text(">> Press 'Share' to pause the audio*");
     ImGui::Text(">> Release 'R1' to close\n   the tutorial window");
 
     ImGui::Text(">> Hold");
@@ -328,9 +316,6 @@ void createContext() {
     diffuceColorSampler2 = glGetUniformLocation(normalShaderProgram, "texture1");
 
     rainTexture = loadSOIL("los_textures/water.png");
-    //landscapeTexture = loadSOIL("los_textures/aerial_grass_rock_diff_2k.jpg");
-    //landscapeTexture = loadSOIL("los_textures/aerial_grass_rock_diff_2k.jpg");
-    //landscapeTexture = loadSOIL("los_textures/water.png");
     pathTexture = loadSOIL("los_textures/dirt-texture.jpg");
 
     ps_logo = loadSOIL("los_textures/ps_button.png");
@@ -345,12 +330,9 @@ void createContext() {
     water2TextureSampler = glGetUniformLocation(normalShaderProgram, "water2TextureSampler");
     water2Texture = loadSOIL("los_textures/water2.bmp");
     
-    raindropTextureSampler = glGetUniformLocation(normalShaderProgram, "raindropTextureSampler");
-    raindropTexture = loadSOIL("los_textures/rain_drop_texture.jpg");
 
     timeUniform = glGetUniformLocation(normalShaderProgram, "time");
 
-    sunTexture = loadSOIL("los_textures/sun_texture.jpg");
 
 #ifndef TESTING
     grassTexture = loadSOIL("los_textures/grass.jpg");
@@ -453,25 +435,16 @@ void mainLoop() {
 
 
 #ifndef TESTING
-    //auto* green = new Drawable("obj_files/LandscapeObjects/green.obj");
     auto* grass = new Drawable("obj_files/LandscapeObjects/grass_v2.obj");
     auto* path = new Drawable("obj_files/LandscapeObjects/path.obj");
     auto* rock = new Drawable("obj_files/LandscapeObjects/rock_v2.obj");
-    //auto* rock_base = new Drawable("obj_files/LandscapeObjects/rock_base.obj");
     auto* rock_tip = new Drawable("obj_files/LandscapeObjects/rock_tip.obj");
-    //auto* rock_2 = new Drawable("obj_files/LandscapeObjects/rock_2.obj");
     auto* lake = new Drawable("obj_files/LandscapeObjects/lake.obj");
-    auto* sun = new Drawable("obj_files/LandscapeObjects/sun.obj");
     auto* flood = new Drawable("obj_files/LandscapeObjects/flood_plane.obj");
 #else
     auto* plane = new Drawable("obj_files/plane.obj");
 #endif // !TESTING
 
-    
-    //auto* landscape = new Drawable("obj_files/landscape_v2.obj");
-    //auto* landscape = new Drawable("obj_files/landscape_more_triangles_v1.obj");
-
-    
     /* Skybox
     cubemapTexture = loadCubemap(faces);
     //*/
@@ -481,9 +454,6 @@ void mainLoop() {
     FountainEmitter f_emitter = FountainEmitter(quad, particles_slider);
 #endif // !QUAD_RAIN
 
-    
-    
-    //OrbitEmitter o_emitter = OrbitEmitter(quad, particles_slider, 10, 80);
 
     float t = glfwGetTime();
     
@@ -557,20 +527,15 @@ void mainLoop() {
         auto lightPos_cameraspace = vec3(viewMatrix * glm::mat4(1.0) * vec4(lightPos, 1.0f));
         glUniform3f(lightPosLocation2, lightPos.x, lightPos.y, lightPos.z);
         
-        //*/ Use particle based drawing
+
         glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, fireTexture);
         glBindTexture(GL_TEXTURE_2D, rainTexture);
         glUniform1i(diffuceColorSampler, 0);
         if(!game_paused) {
             f_emitter.updateParticles(currentTime, dt, camera->position);
-            //o_emitter.updateParticles(currentTime, dt, camera->position);
+
         }
         f_emitter.renderParticles();
-        //o_emitter.renderParticles();
-        //*/
-        
-        
         
         //*// Use standard drawing procedure
         glUseProgram(normalShaderProgram);
@@ -578,13 +543,10 @@ void mainLoop() {
         glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, &viewMatrix[0][0]);
         glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, &projectionMatrix[0][0]);
 
-        //auto p = f_emitter.p_attributes[i];
-        //auto modelMatrix = glm::scale(mat4(1.0f), vec3(4.0f, 4.0f, 4.0f));
         auto r = glm::rotate(mat4(), radians(90.0f), vec3(0.0f, 1.0f, 0.0f));
         auto s = glm::scale(glm::mat4(), glm::vec3(3, 4, 3));
         auto tr = glm::translate(glm::mat4(), glm::vec3(-5.0f, 0.0f, -30.0f)); //Normal Mode
         //auto tr = glm::translate(glm::mat4(), glm::vec3(-5.0f, -40.0f, -30.0f)); //God Mode
-        //auto tr = glm::translate(glm::mat4(), glm::vec3(-5.0f, 0.0f, 5.0f));
 
         glUniformMatrix4fv(translationMatrixLocation, 1, GL_FALSE, &tr[0][0]);
         glUniformMatrix4fv(rotationMatrixLocation, 1, GL_FALSE, &r[0][0]);
@@ -614,34 +576,22 @@ void mainLoop() {
         glBindTexture(GL_TEXTURE_2D, water2Texture);
         glUniform1i(water2TextureSampler, 2);
 
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, raindropTexture);
-        glUniform1i(raindropTextureSampler, 3);
 
         flood_flag = 0;
         glUniform1i(flood_flag_location, flood_flag);
 
-        flood_flag = 2;
-        glUniform1i(flood_flag_location, flood_flag);
+
         lake->bind();
         glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, fireTexture);
         glBindTexture(GL_TEXTURE_2D, rock_tipTexture);
         glUniform1i(diffuceColorSampler2, 0);
-        //auto modelMatrix = t * r * s;
-        //glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
         lake->draw();
 
-
-        flood_flag = 0;
-        glUniform1i(flood_flag_location, flood_flag);
         path->bind();
         glBindTexture(GL_TEXTURE_2D, pathTexture);
         glUniform1i(diffuceColorSampler2, 0);
         path->draw();
 
-        flood_flag = 2;
-        glUniform1i(flood_flag_location, flood_flag);
         grass->bind();
         glBindTexture(GL_TEXTURE_2D, grassTexture);
         glUniform1i(diffuceColorSampler2, 0);
@@ -687,38 +637,13 @@ void mainLoop() {
         flood->draw();
 
 
-        /*
-        flood_flag = 2;
-        glUniform1i(flood_flag_location, flood_flag);
-
-        r = glm::mat4();
-        s = glm::mat4();
-        tr = glm::translate(glm::mat4(), lightPos);
-        //tr = glm::mat4();
-        
-        
-        glUniformMatrix4fv(translationMatrixLocation, 1, GL_FALSE, &tr[0][0]);
-        glUniformMatrix4fv(rotationMatrixLocation, 1, GL_FALSE, &r[0][0]);
-        glUniformMatrix4fv(scaleMatrixLocation, 1, GL_FALSE, &s[0][0]);
-        //*/
-        
-        /*
-        sun->bind();
-
-        glBindTexture(GL_TEXTURE_2D, sunTexture);
-        glUniform1i(diffuceColorSampler2, 0);
-        sun->draw();
-        //*/
         
 #else
         plane->bind();
 
         glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, fireTexture);
         glBindTexture(GL_TEXTURE_2D, pathTexture);
         glUniform1i(diffuceColorSampler2, 0);
-        //auto modelMatrix = t * r * s;
-        //glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, &modelMatrix[0][0]);
         plane->draw();
 #endif // !TESTING
 
@@ -790,14 +715,6 @@ void mainLoop() {
         if (glfwJoystickPresent(GLFW_JOYSTICK_1) && button[5] == GLFW_PRESS)
             renderTutorialWindow();
 
-        /*
-        if (glfwJoystickPresent(GLFW_JOYSTICK_1) && button[9] == GLFW_PRESS)
-        {
-            
-            game_paused = !game_paused;
-            
-        }
-        //*/
 
         //Poll Joystick
         if (glfwJoystickPresent(GLFW_JOYSTICK_1)) pseudo_pollJoystick((int)glfwGetTime() * 1000);
@@ -876,7 +793,6 @@ void initialize() {
     // Log
     logGLParameters();
 
-   
     //glfwSwapInterval(0); //Turns Off Vsync
 
     // Create camera
@@ -915,8 +831,6 @@ void joystick_callback(int jid, int event)
     if (event == GLFW_CONNECTED)
     {
         std::cout << "Connected " << glfwGetJoystickName(GLFW_JOYSTICK_1) << endl;
-        button = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
-        theaxis = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axisCount);
     }
     else if (event == GLFW_DISCONNECTED)
     {
@@ -940,7 +854,6 @@ void pseudo_pollJoystick(int time)
             game_paused = !game_paused;
             PlaySound(NULL, NULL, SND_ASYNC);
             audio_plays = 0;
-            //std::cout << time << " " << time % 2 << "---" << game_paused << std::endl;
             timelog = time;
             i = 2;
         }
