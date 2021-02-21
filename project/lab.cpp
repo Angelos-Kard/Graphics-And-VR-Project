@@ -102,6 +102,7 @@ bool speed = false;
 float flood_height = 2.0f; //MAX: 5.0f
 bool it_is_raining = false;
 int audio_plays = 0; //0: No Rain -- 1: Light Rain -- 2: Heavy Rain -- 3: Thunderstorm
+bool sound_on = true;
 
 
 float height_threshold = 100.0f;
@@ -722,25 +723,25 @@ void mainLoop() {
 #endif // !TESTING
 
 
-        /*/
+        //*/
 
         //Audio
-        if (particles_slider == 0 && audio_plays != 0)
+        if (particles_slider == 0 && audio_plays != 0 && sound_on == true)
         {
             PlaySound(NULL, NULL, SND_ASYNC);
             audio_plays = 0;
         }
-        else if (particles_slider > 0 && particles_slider < 10000 && audio_plays != 1 && game_paused == false)
+        else if (particles_slider > 0 && particles_slider < 10000 && audio_plays != 1 && game_paused == false && sound_on == true)
         {
             PlaySound("audio_files/light-rain.wav", NULL, SND_LOOP|SND_ASYNC);
             audio_plays = 1;
         }
-        else if (particles_slider >= 12000 && particles_slider < 15000 && audio_plays != 2 && game_paused == false)
+        else if (particles_slider >= 12000 && particles_slider < 15000 && audio_plays != 2 && game_paused == false && sound_on == true)
         {
             PlaySound("audio_files/heavy-rain.wav", NULL, SND_LOOP | SND_ASYNC);
             audio_plays = 2;
         }
-        else if (particles_slider >= 15000 && audio_plays != 3 && game_paused == false)
+        else if (particles_slider >= 15000 && audio_plays != 3 && game_paused == false && sound_on == true)
         {
             PlaySound("audio_files/thunderstorm.wav", NULL, SND_LOOP | SND_ASYNC);
             audio_plays = 3;
@@ -958,6 +959,12 @@ void pseudo_pollJoystick(int time)
         else if (button[4] == GLFW_PRESS)
         {
             light_mode = (light_mode + 1) % 4;
+            timelog = time;
+            i = 2;
+        }
+        else if (button[8] == GLFW_PRESS)
+        {
+            sound_on = !sound_on;
             timelog = time;
             i = 2;
         }
