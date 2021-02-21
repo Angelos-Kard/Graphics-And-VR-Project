@@ -1,0 +1,215 @@
+#version 330 core
+
+
+out vec4 fragmentColor;
+
+in vec2 UV;
+in vec3 Normal;
+in vec3 vertex_position_worldspace;
+in vec3 vertex_position_cameraspace;
+
+uniform float time;
+uniform sampler2D texture1;
+uniform sampler2D waterTextureSampler;
+uniform sampler2D water2TextureSampler;
+uniform sampler2D raindropTextureSampler;
+uniform int flood_flag;
+
+
+uniform vec3 lightPos;
+uniform vec3 Ls;
+uniform vec3 Ld;
+uniform vec3 La;
+
+uniform float light_power;
+
+struct Light{
+/*
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+*/
+    float constant;
+    float linear;
+    float quadratic;
+};
+
+void main() {
+    //fragmentColor = vec4(texture(texture1, UV).rgb, 1.0f);
+    //fragmentColor = vec4(0.8f, 0.8f, 0.8f, 0.8f);
+
+    float a = 1.0;
+    vec3 objectColor = vec3(texture(texture1, UV).rgb);
+    if (flood_flag == 1) //For the flood
+    {
+
+        vec3 water_color = texture(waterTextureSampler, UV + time * 0.2).rgb;
+
+        vec3 water2_color = texture(water2TextureSampler, UV + time * 0.3).rgb;
+
+        vec3 water_mix_color = mix(water_color, water2_color, 0.2);
+
+        vec3 texture_color = texture(texture1, UV + length(water_mix_color)).rgb;
+    
+        objectColor = mix(texture_color, water_mix_color, 0.5);
+    }
+
+    Light light;
+    /*
+    light.position = lightPos;
+    light.ambient = vec3(0.2);
+    light.diffuse = vec3(1.0);
+    light.specular = vec3(1.0);
+    
+    */
+    light.constant = 1.0;
+    light.linear = 0.0014;
+    light.quadratic = 0.000007;
+    //float distance_ = length(light.position - vertex_position_worldspace);
+    
+
+    float dist = length(lightPos - vertex_position_cameraspace);
+    float dist_sq = pow(dist, 2);
+
+    float attenuation = 1.0/(light.constant + light.linear * dist + light.quadratic * (dist * dist));
+
+    //Ambient
+    float ambientStrength = 0.5;
+    vec3 ambient = ambientStrength * La;
+
+    ///Diffuse
+    vec3 N = normalize(Normal);
+    vec3 L = normalize(lightPos - vertex_position_cameraspace);
+    
+    //float diff = max(dot(norm, lightDir), 0.0);
+    float cosTheta = clamp(dot(L, N),0,1);
+    vec3 diffuse = cosTheta * Ld;
+
+    ///Specular
+
+    float specularStrength = 3.0;
+    if (flood_flag == 1) specularStrength = 60.0;
+    vec3 E = normalize(-vertex_position_cameraspace);// - vertex_position_worldspace);
+    vec3 R = reflect(-L, N);
+    //float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+    float cosAlpha = clamp(dot(E, R), 0, 1);
+    vec3 specular = pow(cosAlpha, specularStrength) * Ls;
+
+
+    
+
+    vec3 result = (ambient+diffuse + specular) * objectColor;
+    //vec3 result = (ambient + diffuse*light_power/dist_sq + specular*light_power/dist_sq) * objectColor;
+    
+    if (flood_flag == 1) a=0.8;
+    fragmentColor = vec4(result, a);
+    
+
+
+
+}
+
+
+
+
+
+
+
+/*
+in vec3 vertex_position_worldspace;
+in vec3 vertex_position_cameraspace;
+in vec3 vertex_normal_cameraspace;
+in vec2 vertex_UV;
+
+uniform int useTexture = 0;
+uniform sampler2D diffuseColorSampler;
+uniform sampler2D specularColorSampler;
+uniform sampler2DShadow shadowMapSampler;
+uniform mat4 V;
+uniform sampler2D texture1; //Different
+
+// Phong
+// light properties
+struct Light {
+    vec4 La;
+    vec4 Ld;
+    vec4 Ls;
+    vec3 lightPosition_worldspace;
+    float power;
+};
+uniform Light light = Light(
+    vec4(1, 1, 1, 1),
+    vec4(1, 1, 1, 1),
+    vec4(1, 1, 1, 1),
+    vec3(0, 4, 4),
+    20.0f
+);
+
+// materials
+struct Material {
+    vec4 Ka;
+    vec4 Kd;
+    vec4 Ks;
+    float Ns;
+};
+uniform Material mtl = Material(
+    vec4(0.24725, 0.1995, 0.0745, 1),
+    vec4(0.75164, 0.60648, 0.22648, 1),
+    vec4(0.628281, 0.555802, 0.366065, 1),
+    51.2f
+);
+
+// Output data
+out vec4 fragmentColor;
+
+void phong();
+
+void main() {
+    phong();
+}
+
+void phong() {
+    vec4 _Ks = mtl.Ks;
+    vec4 _Kd = mtl.Kd;
+    vec4 _Ka = mtl.Ka;
+    float _Ns = mtl.Ns;
+    // use texture for materials
+    if (useTexture == 1) {
+        _Ks = vec4(texture(specularColorSampler, vertex_UV).rgb, 1.0);
+        
+        _Kd = vec4(texture(diffuseColorSampler, vertex_UV).rgb, 1.0);
+        
+        _Ka = vec4(0.1, 0.1, 0.1, 1.0);
+        _Ns = 10;
+    }
+
+    // model ambient intensity (Ia)
+    vec4 Ia = light.La * _Ka;
+
+    // model diffuse intensity (Id)
+    vec3 N = normalize(vertex_normal_cameraspace);
+    vec3 L = normalize((V * vec4(light.lightPosition_worldspace, 1)).xyz
+        - vertex_position_cameraspace);
+    float cosTheta = clamp(dot(L, N), 0, 1);
+    vec4 Id = light.Ld * _Kd * cosTheta;
+
+    // model specular intensity (Is)
+    vec3 R = reflect(-L, N);
+    vec3 E = normalize(- vertex_position_cameraspace);
+    float cosAlpha = clamp(dot(E, R), 0, 1);
+    float specular_factor = pow(cosAlpha, _Ns);
+    vec4 Is = light.Ls * _Ks * specular_factor;
+
+    //model the light distance effect
+    float distance = length(light.lightPosition_worldspace
+        - vertex_position_worldspace);
+    float distance_sq = distance * distance;
+
+    // final fragment color
+    fragmentColor = vec4(
+        Ia +
+        Id * light.power / distance_sq +
+        Is * light.power / distance_sq);
+}
+//*/

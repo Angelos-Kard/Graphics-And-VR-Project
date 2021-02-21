@@ -1,0 +1,61 @@
+#version 330 core
+
+// input vertex, UV coordinates and normal
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec3 vertexNormal_modelspace;
+layout(location = 2) in vec2 vertexUV;
+
+
+out vec2 UV;
+out vec3 Normal;
+out vec3 vertex_position_worldspace;
+out vec3 vertex_position_cameraspace;
+
+
+uniform mat4 M;
+uniform mat4 T;
+uniform mat4 R;
+uniform mat4 S;
+uniform mat4 V;
+uniform mat4 P;
+
+/*
+
+out vec3 vertex_position_cameraspace;
+out vec3 vertex_normal_cameraspace;
+out vec2 vertex_UV;
+//*/
+
+
+void main() {
+    // vertex position
+
+    UV = vertexUV;
+
+    gl_Position =  P * V * T * R * S * vec4(vertexPosition_modelspace, 1);
+
+    vertex_position_worldspace = vec3(T * R * S * vec4(vertexPosition_modelspace, 1.0));
+
+    vertex_position_cameraspace = vec3(V * T * R * S * vec4(vertexPosition_modelspace, 1.0));
+    
+    //gl_Position =  P * V * M * vec4(vertexPosition_modelspace, 1);
+    
+
+    Normal  = mat3(transpose(inverse(V*T*R*S))) * vertexNormal_modelspace;
+
+}
+
+
+/*
+void main() {
+    // vertex position
+    gl_Position =  P * V * M * vec4(vertexPosition_modelspace, 1);
+    gl_PointSize = 10;
+
+    // FS
+    vertex_position_worldspace = (M * vec4(vertexPosition_modelspace, 1)).xyz;
+    vertex_position_cameraspace = (V * M * vec4(vertexPosition_modelspace, 1)).xyz;
+    vertex_normal_cameraspace = (V * M * vec4(vertexNormal_modelspace, 0)).xyz;
+    vertex_UV = vertexUV;
+}
+//*/
